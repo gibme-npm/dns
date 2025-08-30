@@ -35,3 +35,7 @@ export class OPENPGPKEY {
         writer.bytes(data);
     }
 }
+
+export namespace OPENPGPKEY {
+    export type Record = Buffer;
+}

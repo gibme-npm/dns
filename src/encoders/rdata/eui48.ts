@@ -43,3 +43,7 @@ export class EUI48 {
         writer.bytes(temp.buffer);
     }
 }
+
+export namespace EUI48 {
+    export type Record = string;
+}

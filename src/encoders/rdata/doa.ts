@@ -39,3 +39,7 @@ export class DOA {
         });
     }
 }
+
+export namespace DOA {
+    export type Record = Buffer;
+}

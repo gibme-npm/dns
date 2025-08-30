@@ -33,3 +33,7 @@ export class DNAME {
         return CNAME.encode(writer, name, index);
     }
 }
+
+export namespace DNAME {
+    export type Record = string;
+}

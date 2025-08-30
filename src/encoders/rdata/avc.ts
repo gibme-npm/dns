@@ -59,3 +59,7 @@ export class AVC {
         writer.bytes(temp.buffer);
     }
 }
+
+export namespace AVC {
+    export type Record = string[];
+}

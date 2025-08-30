@@ -40,3 +40,7 @@ export class NS {
         writer.bytes(temp.buffer);
     }
 }
+
+export namespace NS {
+    export type Record = string;
+}

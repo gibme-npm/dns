@@ -38,3 +38,7 @@ export class AAAA {
         writer.bytes(buffer);
     }
 }
+
+export namespace AAAA {
+    export type Record = string;
+}

@@ -23,3 +23,7 @@ import { EUI48 } from './eui48';
 export class EUI64 extends EUI48 {
     public static readonly type: number = 109;
 }
+
+export namespace EUI64 {
+    export type Record = EUI48.Record;
+}

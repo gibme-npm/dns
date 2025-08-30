@@ -57,3 +57,7 @@ export class TXT {
         writer.bytes(temp.buffer);
     }
 }
+
+export namespace TXT {
+    export type Record = {[key: string]: string};
+}

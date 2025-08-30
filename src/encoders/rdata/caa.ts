@@ -21,18 +21,11 @@
 import { Reader, Writer } from '@gibme/bytepack';
 import { String } from '../';
 
-export type CAARecord = {
-    flags: number;
-    tag: string;
-    value: string;
-    issuerCritical: boolean;
-}
-
 export class CAA {
     public static readonly type: number = 257;
     public static readonly ISSUER_CRITICAL = 1 << 7;
 
-    public static decode (reader: Reader): CAARecord {
+    public static decode (reader: Reader): CAA.Record {
         const length = reader.uint16_t(true).toJSNumber();
 
         const temp = new Reader(reader.bytes(length));
@@ -51,7 +44,7 @@ export class CAA {
         };
     }
 
-    public static encode (writer: Writer, data: CAARecord): void {
+    public static encode (writer: Writer, data: CAA.Record): void {
         const temp = new Writer();
 
         let { flags } = data;
@@ -71,5 +64,14 @@ export class CAA {
         writer.uint16_t(temp.length, true);
 
         writer.bytes(temp.buffer);
+    }
+}
+
+export namespace CAA {
+    export type Record = {
+        flags: number;
+        tag: string;
+        value: string;
+        issuerCritical: boolean;
     }
 }

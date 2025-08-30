@@ -38,3 +38,7 @@ export class CNAME {
         writer.bytes(buffer);
     }
 }
+
+export namespace CNAME {
+    export type Record = string;
+}

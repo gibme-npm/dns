@@ -40,3 +40,7 @@ export class PTR {
         writer.bytes(temp.buffer);
     }
 }
+
+export namespace PTR {
+    export type Record = string;
+}

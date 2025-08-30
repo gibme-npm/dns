@@ -67,6 +67,13 @@ import { AMTRELAY } from './rdata/amtrelay';
 import type { Reader, Writer } from '@gibme/bytepack';
 import type { Name } from './name';
 import { Unsupported } from './rdata/unsupported';
+export {
+    A, NS, CNAME, SOA, PTR, HINFO, MX, TXT, RP, AFSDB, AAAA, LOC, SRV, NAPTR,
+    KX, CERT, DNAME, OPT, DS, SSHFP, IPSECKEY, RRSIG, NSEC, DNSKEY, DHCID,
+    NSEC3, NSEC3PARAM, TLSA, SMIMEA, HIP, CDS, CDNSKEY, OPENPGPKEY, CSYNC,
+    ZONEMD, SVCB, HTTPS, EUI48, EUI64, TKEY, TSIG, URI, CAA, AVC, DOA,
+    AMTRELAY, Unsupported
+};
 
 /**
  * Describes the interface for an RRDataEncoder

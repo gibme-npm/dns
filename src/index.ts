@@ -25,6 +25,7 @@ import { Address4, Address6 } from 'ip-address';
 import { Reader, Writer } from '@gibme/bytepack';
 
 export * from './types';
+export * from './encoders';
 
 /**
  * Performs a DNS lookup of the supplied Questions.

@@ -22,16 +22,33 @@ import type { Reader, Writer } from '@gibme/bytepack';
 import { Unsupported } from './unsupported';
 
 /**
- * The DOA RR is a mess, and as a result, we're going to handle it
- * as an unsupported type
+ * Encoder for DNS DOA (Digital Object Architecture) resource records (Type 259).
+ *
+ * Associates digital object identifiers with DNS names.
+ * Note: The DOA RR is handled as an unsupported type due to specification complexity.
+ *
+ * @see IANA experimental
  */
 export class DOA {
+    /** IANA resource record type identifier */
     public static readonly type: number = 259;
 
+    /**
+     * Decodes a DOA record from the byte stream.
+     *
+     * @param reader - the byte stream reader positioned at the DOA RDATA
+     * @returns the decoded DOA record as a raw Buffer
+     */
     public static decode (reader: Reader): Buffer {
         return Unsupported.decode(reader, DOA.type).payload;
     }
 
+    /**
+     * Encodes a DOA record into the byte stream.
+     *
+     * @param writer - the byte stream writer to encode into
+     * @param data - the raw DOA record data
+     */
     public static encode (writer: Writer, data: Buffer): void {
         return Unsupported.encode(writer, {
             payload: data,
@@ -41,5 +58,6 @@ export class DOA {
 }
 
 export namespace DOA {
+    /** The DOA record data stored as a raw Buffer (unsupported structured format). */
     export type Record = Buffer;
 }

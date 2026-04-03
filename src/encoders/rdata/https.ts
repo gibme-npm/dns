@@ -22,18 +22,46 @@ import type { Reader, Writer } from '@gibme/bytepack';
 import type { Name } from '../';
 import { SVCB } from './svcb';
 
+/**
+ * Encoder for DNS HTTPS (HTTPS Service Binding) resource records (Type 65).
+ *
+ * Provides HTTPS-specific service binding parameters for a domain.
+ *
+ * @see RFC 9460
+ */
 export class HTTPS {
+    /** IANA resource record type identifier */
     public static readonly type: number = 65;
 
+    /**
+     * Decodes an HTTPS record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded HTTPS record
+     */
     public static decode (reader: Reader): HTTPS.Record {
         return SVCB.decode(reader);
     }
 
+    /**
+     * Encodes an HTTPS record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the HTTPS record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: HTTPS.Record, index: Name.CompressionIndex): void {
         return SVCB.encode(writer, data, index);
     }
 }
 
 export namespace HTTPS {
+    /**
+     * HTTPS record data.
+     *
+     * - `priority` - Service priority (0 = alias mode, >0 = service mode)
+     * - `target` - Target domain name
+     * - `params` - Service parameters as key-value pairs
+     */
     export type Record = SVCB.Record;
 }

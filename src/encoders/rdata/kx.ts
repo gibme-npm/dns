@@ -22,13 +22,34 @@ import type { Reader, Writer } from '@gibme/bytepack';
 import type { Name } from '../';
 import { MX } from './mx';
 
+/**
+ * Encoder for DNS KX (Key Exchanger) resource records (Type 36).
+ *
+ * Identifies a key management agent for a domain.
+ *
+ * @see RFC 2230
+ */
 export class KX {
+    /** IANA resource record type identifier */
     public static readonly type: number = 36;
 
+    /**
+     * Decodes a KX record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded KX record
+     */
     public static decode (reader: Reader): KX.Record {
         return MX.decode(reader) as KX.Record;
     }
 
+    /**
+     * Encodes a KX record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the KX record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: KX.Record, index: Name.CompressionIndex): void {
         return MX.encode(writer, data, index);
     }
@@ -36,7 +57,9 @@ export class KX {
 
 export namespace KX {
     export type Record = {
+        /** Preference value (lower is preferred) */
         preference: number;
+        /** Domain name of the key management agent */
         exchange: string;
     }
 }

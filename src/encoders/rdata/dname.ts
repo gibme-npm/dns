@@ -22,18 +22,40 @@ import type { Reader, Writer } from '@gibme/bytepack';
 import type { Name } from '../';
 import { CNAME } from './cname';
 
+/**
+ * Encoder for DNS DNAME (Delegation Name) resource records (Type 39).
+ *
+ * Provides redirection for an entire subtree of the domain name tree.
+ *
+ * @see RFC 6672
+ */
 export class DNAME {
+    /** IANA resource record type identifier */
     public static readonly type: number = 39;
 
+    /**
+     * Decodes a DNAME record from the byte stream.
+     *
+     * @param reader - the byte stream reader positioned at the DNAME RDATA
+     * @returns the target domain name
+     */
     public static decode (reader: Reader): string {
         return CNAME.decode(reader);
     }
 
+    /**
+     * Encodes a DNAME record into the byte stream.
+     *
+     * @param writer - the byte stream writer to encode into
+     * @param name - the target domain name
+     * @param index - compression index for DNS name pointer compression
+     */
     public static encode (writer: Writer, name: string, index: Name.CompressionIndex): void {
         return CNAME.encode(writer, name, index);
     }
 }
 
 export namespace DNAME {
+    /** The DNAME record data is a domain name string representing the delegation target. */
     export type Record = string;
 }

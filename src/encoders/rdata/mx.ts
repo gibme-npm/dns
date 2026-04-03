@@ -20,12 +20,32 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS MX (Mail Exchange) resource records (Type 15).
+ *
+ * Specifies the mail server responsible for accepting email for a domain.
+ *
+ * @see RFC 1035 Section 3.3.9
+ */
 export class MX {
+    /** IANA resource record type identifier */
     public static readonly type: number = 15;
 
+    /**
+     * Decodes an MX record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded MX record
+     */
     public static decode (reader: Reader): MX.Record {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'MX RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
+
+        // Validate minimum fields are available
+        validateBufferLength(reader, 2, 'MX preference field');
 
         return {
             preference: reader.uint16_t(true).toJSNumber(),
@@ -33,6 +53,13 @@ export class MX {
         };
     }
 
+    /**
+     * Encodes an MX record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the MX record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: MX.Record, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -48,7 +75,9 @@ export class MX {
 
 export namespace MX {
     export type Record = {
+        /** Preference value (lower is preferred) */
         preference: number;
+        /** Domain name of the mail server */
         exchange: string;
     }
 }

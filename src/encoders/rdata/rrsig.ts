@@ -20,12 +20,32 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
+import { validateBufferLength, validateNonNegativeLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS RRSIG (Resource Record Signature) resource records (Type 46).
+ *
+ * Contains a DNSSEC signature covering an RRset.
+ *
+ * @see RFC 4034 Section 3
+ */
 export class RRSIG {
+    /** IANA resource record type identifier */
     public static readonly type: number = 46;
 
+    /**
+     * Decodes an RRSIG record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded RRSIG record
+     */
     public static decode (reader: Reader): RRSIG.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'RRSIG RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
+
+        // Validate minimum fixed fields are available
+        validateBufferLength(reader, 18, 'RRSIG fixed fields');
 
         const typeCovered = reader.uint16_t(true).toJSNumber();
 
@@ -41,9 +61,14 @@ export class RRSIG {
 
         const keyTag = reader.uint16_t(true).toJSNumber();
 
+        const beforeName = reader.offset;
         const signerName = Name.decode(reader);
+        const nameWireLength = reader.offset - beforeName;
 
-        const signature = reader.bytes(length - 18);
+        const signatureLength = rdataLength - 18 - nameWireLength;
+        validateNonNegativeLength(signatureLength, 'RRSIG signature length');
+
+        const signature = reader.bytes(signatureLength);
 
         return {
             typeCovered,
@@ -58,6 +83,13 @@ export class RRSIG {
         };
     }
 
+    /**
+     * Encodes an RRSIG record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the RRSIG record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: RRSIG.Record, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -86,15 +118,25 @@ export class RRSIG {
 }
 
 export namespace RRSIG {
+    /** Decoded RRSIG record data */
     export type Record = {
+        /** RR type covered by this signature */
         typeCovered: number;
+        /** DNSSEC algorithm number */
         algorithm: number;
+        /** Number of labels in the original owner name */
         labels: number;
+        /** Original TTL of the covered RRset */
         originalTTL: number;
+        /** Signature expiration timestamp */
         signatureExpiration: number;
+        /** Signature inception timestamp */
         signatureInception: number;
+        /** Key tag of the signing DNSKEY */
         keyTag: number;
+        /** Domain name of the signing authority */
         signerName: string;
+        /** The cryptographic signature */
         signature: Buffer;
     }
 }

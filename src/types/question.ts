@@ -24,9 +24,13 @@ import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../encoders';
 
 export class Question {
+    /** The domain name being queried */
     public name: string;
+    /** The resource record class (e.g. IN, CH, HS) */
     public class: RCLASS;
+    /** The resource record type (e.g. A, AAAA, MX) */
     public type: RTYPE;
+    /** Whether a unicast response is requested (mDNS) */
     public qu: boolean;
 
     /**

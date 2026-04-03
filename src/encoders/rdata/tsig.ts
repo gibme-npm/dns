@@ -20,12 +20,29 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS TSIG (Transaction Signature) resource records (Type 250).
+ *
+ * Provides transaction-level authentication for DNS messages.
+ *
+ * @see RFC 8945
+ */
 export class TSIG {
+    /** IANA resource record type identifier */
     public static readonly type: number = 250;
 
+    /**
+     * Decodes a TSIG record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded TSIG record
+     */
     public static decode (reader: Reader): TSIG.Record {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'TSIG RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
 
         const algorithm = Name.decode(reader);
 
@@ -56,6 +73,13 @@ export class TSIG {
         };
     }
 
+    /**
+     * Encodes a TSIG record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the TSIG record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: TSIG.Record, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -107,12 +131,19 @@ export class TSIG {
 
 export namespace TSIG {
     export type Record = {
+        /** HMAC algorithm name */
         algorithm: string;
+        /** Time the signature was generated */
         signed: number;
+        /** Allowable time difference in seconds */
         fudge: number;
+        /** Message Authentication Code */
         mac: Buffer;
+        /** Original message ID */
         originalId: number;
+        /** Error code */
         error: number;
+        /** Additional data */
         other: Buffer;
     }
 }

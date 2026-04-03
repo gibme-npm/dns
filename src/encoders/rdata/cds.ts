@@ -21,13 +21,33 @@
 import type { Reader, Writer } from '@gibme/bytepack';
 import { DS } from './ds';
 
+/**
+ * Encoder for DNS CDS (Child DS) resource records (Type 59).
+ *
+ * Contains a child zone's DS record for parent validation during key rollovers.
+ *
+ * @see RFC 7344 Section 3.1
+ */
 export class CDS {
+    /** IANA resource record type identifier */
     public static readonly type: number = 59;
 
+    /**
+     * Decodes a CDS record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded CDS record
+     */
     public static decode (reader: Reader): CDS.Record {
         return DS.decode(reader);
     }
 
+    /**
+     * Encodes a CDS record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param record - the CDS record to encode
+     */
     public static encode (writer: Writer, record: CDS.Record): void {
         return DS.encode(writer, record);
     }

@@ -19,26 +19,62 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { DNS_MAX_STRING_LENGTH, ValidationErrors } from '../../constants/validation';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS AVC (Application Visibility and Control) resource records (Type 258).
+ *
+ * Provides application visibility metadata.
+ *
+ * @see IANA experimental
+ */
 export class AVC {
+    /** IANA resource record type identifier */
     public static readonly type: number = 258;
 
+    /**
+     * Decodes an AVC record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded AVC strings
+     */
     public static decode (reader: Reader): string[] {
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'AVC RDATA length');
         const length = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const temp = createBoundedReader(reader, length, 'AVC RDATA payload');
 
         const strings: string[] = [];
 
         while (temp.unreadBytes > 0) {
+            // Validate buffer has string length byte
+            validateBufferLength(temp, 1, 'AVC string length');
             const str_length = temp.uint8_t().toJSNumber();
 
-            strings.push(reader.bytes(str_length).toString('utf8'));
+            // Validate string length
+            if (str_length > DNS_MAX_STRING_LENGTH) {
+                throw new Error(ValidationErrors.STRING_TOO_LONG(str_length));
+            }
+
+            // Validate buffer has string data
+            validateBufferLength(temp, str_length, 'AVC string data');
+
+            // FIX: Read from temp (bounded reader), not from reader (original buffer)
+            strings.push(temp.bytes(str_length).toString('utf8'));
         }
 
         return strings;
     }
 
+    /**
+     * Encodes an AVC record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the AVC text strings
+     */
     public static encode (writer: Writer, data: string[]): void {
         const temp = new Writer();
 

@@ -19,23 +19,47 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS DS (Delegation Signer) resource records (Type 43).
+ *
+ * Links a child zone's DNSKEY to its parent zone for DNSSEC chain of trust.
+ *
+ * @see RFC 4034 Section 5
+ */
 export class DS {
+    /** IANA resource record type identifier */
     public static readonly type: number = 43;
 
+    /**
+     * Decodes a DS record from the byte stream.
+     *
+     * @param reader - the byte stream reader positioned at the DS RDATA
+     * @returns the decoded DS record
+     */
     public static decode (reader: Reader): DS.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'DS RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'DS RDATA payload');
 
         return {
-            keyTag: temp.uint16_t(true).toJSNumber(),
-            algorithm: temp.uint8_t().toJSNumber(),
-            digestType: temp.uint8_t().toJSNumber(),
-            digest: temp.unreadBuffer
+            keyTag: rdataReader.uint16_t(true).toJSNumber(),
+            algorithm: rdataReader.uint8_t().toJSNumber(),
+            digestType: rdataReader.uint8_t().toJSNumber(),
+            digest: rdataReader.unreadBuffer
         };
     }
 
+    /**
+     * Encodes a DS record into the byte stream.
+     *
+     * @param writer - the byte stream writer to encode into
+     * @param data - the DS record to encode
+     */
     public static encode (writer: Writer, data: DS.Record): void {
         const temp = new Writer();
 
@@ -55,9 +79,13 @@ export class DS {
 
 export namespace DS {
     export type Record = {
+        /** Key tag of the referenced DNSKEY */
         keyTag: number;
+        /** DNSSEC algorithm number */
         algorithm: number;
+        /** Digest algorithm type (1=SHA-1, 2=SHA-256, etc.) */
         digestType: number;
+        /** The digest of the referenced DNSKEY */
         digest: Buffer;
     }
 }

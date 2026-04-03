@@ -20,12 +20,32 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name, String } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS NAPTR (Naming Authority Pointer) resource records (Type 35).
+ *
+ * Specifies rules for rewriting domain names for DDDS applications.
+ *
+ * @see RFC 3403
+ */
 export class NAPTR {
+    /** IANA resource record type identifier */
     public static readonly type: number = 35;
 
+    /**
+     * Decodes a NAPTR record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded NAPTR record
+     */
     public static decode (reader: Reader): NAPTR.Record {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'NAPTR RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
+
+        // Validate minimum fields are available
+        validateBufferLength(reader, 4, 'NAPTR fixed fields');
 
         return {
             order: reader.uint16_t(true).toJSNumber(),
@@ -37,6 +57,13 @@ export class NAPTR {
         };
     }
 
+    /**
+     * Encodes a NAPTR record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the NAPTR record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: NAPTR.Record, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -60,11 +87,17 @@ export class NAPTR {
 
 export namespace NAPTR {
     export type Record = {
+        /** Processing order (lower first) */
         order: number;
+        /** Preference among records with equal order */
         preference: number;
+        /** NAPTR flags (e.g. 'U' for URI, 'S' for SRV) */
         flags: string;
+        /** Service field describing available protocols */
         service: string;
+        /** Regular expression for URI rewriting */
         regexp: string;
+        /** Replacement domain name (mutually exclusive with regexp) */
         replacement: string;
     }
 }

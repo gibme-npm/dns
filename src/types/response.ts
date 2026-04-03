@@ -20,6 +20,11 @@
 
 import { Packet } from './packet';
 
+/**
+ * Specialized DNS Packet for responses (type=1)
+ *
+ * Allows all packet sections (questions, answers, authorities, additionals).
+ */
 export class Response extends Packet {
     /**
      * Constructs a new DNS Response packet

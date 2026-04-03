@@ -219,7 +219,9 @@ export class RType {
     public static readonly NAME_TO_ID: Map<RTYPE, number> = new Map(Array.from(RType.ID_TO_NAME.entries())
         .map(([id, name]) => [name, id]));
 
+    /** The numeric IANA type identifier */
     public readonly id: number;
+    /** The string name of the resource record type */
     public readonly name: RTYPE;
 
     /**

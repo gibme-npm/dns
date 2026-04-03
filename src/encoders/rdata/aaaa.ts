@@ -20,16 +20,42 @@
 
 import type { Reader, Writer } from '@gibme/bytepack';
 import { Address6 } from 'ip-address';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS AAAA (IPv6 Address) resource records (Type 28).
+ *
+ * Maps a domain name to an IPv6 address.
+ *
+ * @see RFC 3596 Section 2.2
+ */
 export class AAAA {
+    /** IANA resource record type identifier */
     public static readonly type: number = 28;
 
+    /**
+     * Decodes an AAAA record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded IPv6 address string
+     */
     public static decode (reader: Reader): string {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'AAAA RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        return Address6.fromUnsignedByteArray([...reader.bytes(length)]).address;
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'AAAA RDATA payload');
+
+        return Address6.fromUnsignedByteArray([...rdataReader.bytes(rdataLength)]).address;
     }
 
+    /**
+     * Encodes an AAAA record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param address - the IPv6 address string
+     */
     public static encode (writer: Writer, address: string): void {
         const buffer = Buffer.from((new Address6(address)).toUnsignedByteArray());
 

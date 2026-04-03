@@ -19,6 +19,13 @@
 // SOFTWARE.
 
 import type { Reader, Writer } from '@gibme/bytepack';
+import {
+    DNS_MAX_LABEL_LENGTH,
+    DNS_MAX_NAME_LENGTH,
+    DNS_MAX_POINTER_DEPTH,
+    ValidationErrors
+} from '../constants/validation';
+import { validateBufferLength, validatePointerOffset } from '../utils/validation';
 
 export class Name {
     /**
@@ -26,43 +33,100 @@ export class Name {
      * @param reader
      * @param isEmail
      * @param visited
+     * @param depth
+     * @param totalLength
      */
-    public static decode (reader: Reader, isEmail = false, visited = new Set<number>()): string {
+    public static decode (
+        reader: Reader,
+        isEmail = false,
+        visited = new Set<number>(),
+        depth = 0,
+        totalLength = 0
+    ): string {
+        // Check pointer depth to prevent compression bombs
+        if (depth > DNS_MAX_POINTER_DEPTH) {
+            throw new Error(ValidationErrors.POINTER_DEPTH_EXCEEDED(depth));
+        }
+
         const labels: string[] = [];
+        const bufferStart = 0;
+        const bufferSize = reader.length;
 
         while (true) {
             const offset = reader.offset;
 
+            // Check for cyclic pointers
             if (visited.has(offset)) {
                 throw new Error('Cyclic compression pointer detected');
             }
 
             visited.add(offset);
 
+            // Validate buffer has at least 1 byte for length
+            validateBufferLength(reader, 1, 'Name length byte');
+
             const length = reader.uint8_t().toJSNumber();
 
             // Compression pointer
             if ((length & 0xC0) === 0xC0) {
+                // Validate buffer has second byte of pointer
+                validateBufferLength(reader, 1, 'Compression pointer second byte');
+
                 const secondByte = reader.uint8_t().toJSNumber();
 
                 const pointerOffset = ((length & 0x3F) << 8) | secondByte;
+
+                // Validate pointer offset
+                validatePointerOffset(
+                    pointerOffset,
+                    bufferStart,
+                    offset,
+                    bufferSize,
+                    'Name compression pointer'
+                );
 
                 const savedOffset = reader.offset;
 
                 reader.reset(pointerOffset);
 
-                labels.push(...Name.decode(reader, isEmail, visited).split('.'));
+                // Recursively decode with increased depth
+                const decodedName = Name.decode(reader, isEmail, visited, depth + 1, totalLength);
+
+                // Add to total length (each label + length byte, +1 for null terminator accounted in recursive call)
+                const newTotalLength = totalLength + decodedName.length + labels.join('.').length + labels.length;
+
+                if (newTotalLength > DNS_MAX_NAME_LENGTH) {
+                    throw new Error(ValidationErrors.NAME_TOO_LONG(newTotalLength));
+                }
+
+                labels.push(...decodedName.split('.'));
 
                 reader.reset(savedOffset);
 
                 break;
             }
 
+            // End of name
             if (length === 0) break;
+
+            // Validate label length
+            if (length > DNS_MAX_LABEL_LENGTH) {
+                throw new Error(ValidationErrors.LABEL_TOO_LONG(length));
+            }
+
+            // Validate buffer has label data
+            validateBufferLength(reader, length, 'Name label data');
 
             const labelBytes = reader.bytes(length);
 
             labels.push(labelBytes.toString('ascii'));
+
+            // Track total name length (label + length byte)
+            totalLength += length + 1;
+
+            if (totalLength > DNS_MAX_NAME_LENGTH) {
+                throw new Error(ValidationErrors.NAME_TOO_LONG(totalLength));
+            }
         }
 
         if (isEmail) {
@@ -99,7 +163,7 @@ export class Name {
 
         const labels = cleanName.split('.');
 
-        const resultBuffer = Buffer.alloc(256); // Max possible name size is 255 bytes
+        const resultBuffer = Buffer.alloc(DNS_MAX_NAME_LENGTH + 1); // Max possible name size + null terminator
 
         let currentOffset = 0;
 
@@ -126,8 +190,14 @@ export class Name {
 
             const label = labels[i];
 
-            if (label.length > 63) {
-                throw new Error(`Label "${label}" exceeds maximum length of 63 characters`);
+            // Validate label length
+            if (label.length > DNS_MAX_LABEL_LENGTH) {
+                throw new Error(ValidationErrors.LABEL_TOO_LONG(label.length));
+            }
+
+            // Check total name length doesn't exceed limit
+            if (currentOffset + label.length + 2 > DNS_MAX_NAME_LENGTH) {
+                throw new Error(ValidationErrors.NAME_TOO_LONG(currentOffset + label.length + 2));
             }
 
             resultBuffer[currentOffset++] = label.length;

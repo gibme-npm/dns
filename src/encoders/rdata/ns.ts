@@ -20,16 +20,43 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS NS (Name Server) resource records (Type 2).
+ *
+ * Delegates a DNS zone to an authoritative name server.
+ *
+ * @see RFC 1035 Section 3.3.11
+ */
 export class NS {
+    /** IANA resource record type identifier */
     public static readonly type: number = 2;
 
+    /**
+     * Decodes an NS record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the authoritative name server domain
+     */
     public static decode (reader: Reader): string {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'NS RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
+
+        // Validate RDATA payload is available
+        validateBufferLength(reader, rdataLength, 'NS RDATA payload');
 
         return Name.decode(reader);
     }
 
+    /**
+     * Encodes an NS record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param name - the name server domain
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, name: string, index: Name.CompressionIndex): void {
         const temp = new Writer();
 

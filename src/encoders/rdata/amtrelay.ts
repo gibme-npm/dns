@@ -21,24 +21,42 @@
 import { Reader, Writer } from '@gibme/bytepack';
 import { Address4, Address6 } from 'ip-address';
 import { Name } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS AMTRELAY (Automatic Multicast Tunneling Relay) resource records (Type 260).
+ *
+ * Specifies AMT relay discovery information.
+ *
+ * @see RFC 8777 Section 4
+ */
 export class AMTRELAY {
+    /** IANA resource record type identifier */
     public static readonly type: number = 260;
 
+    /**
+     * Decodes an AMTRELAY record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded AMTRELAY record
+     */
     public static decode (reader: Reader): AMTRELAY.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'AMTRELAY RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
 
-        const temp = new Reader(reader.bytes(length));
+        // Validate minimum fields are available
+        validateBufferLength(reader, 2, 'AMTRELAY fixed fields');
 
-        const precedence = temp.uint8_t().toJSNumber();
+        const precedence = reader.uint8_t().toJSNumber();
 
-        const flags = temp.uint8_t().toJSNumber();
+        const flags = reader.uint8_t().toJSNumber();
 
         const discoveryOptional = (flags & 0x80) !== 0;
 
         const type = flags & 0x7F;
 
-        const relay = AMTRELAY.decode_relay(temp, type);
+        const relay = AMTRELAY.decode_relay(reader, type);
 
         return {
             precedence,
@@ -47,6 +65,13 @@ export class AMTRELAY {
         };
     }
 
+    /**
+     * Encodes an AMTRELAY record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the AMTRELAY record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: AMTRELAY.Record, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -120,8 +145,11 @@ export class AMTRELAY {
 
 export namespace AMTRELAY {
     export type Record = {
+        /** The relay precedence value */
         precedence: number;
+        /** Discovery optional bit */
         discoveryOptional: boolean;
+        /** The relay address or domain name */
         relay: string;
     };
 }

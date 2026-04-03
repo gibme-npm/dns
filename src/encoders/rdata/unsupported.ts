@@ -19,17 +19,41 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Fallback encoder for unsupported or unknown DNS resource record types.
+ *
+ * Preserves the raw RDATA payload as a Buffer for record types without a dedicated encoder.
+ */
 export class Unsupported {
+    /**
+     * Decodes an unsupported record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @param type - the record type ID
+     * @returns the decoded unsupported record
+     */
     public static decode (reader: Reader, type: number): Unsupported.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'Unsupported RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
+
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'Unsupported RDATA payload');
 
         return {
-            payload: reader.bytes(length),
+            payload: rdataReader.bytes(rdataLength),
             type
         };
     }
 
+    /**
+     * Encodes an unsupported record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the unsupported record to encode
+     */
     public static encode (writer: Writer, data: Unsupported.Record): void {
         writer.uint16_t(data.payload.length, true);
 
@@ -39,7 +63,9 @@ export class Unsupported {
 
 export namespace Unsupported {
     export type Record = {
+        /** The raw RDATA payload */
         payload: Buffer;
+        /** The numeric record type identifier */
         type: number;
     }
 }

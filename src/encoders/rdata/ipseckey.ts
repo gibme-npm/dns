@@ -21,26 +21,48 @@
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
 import { Address4, Address6 } from 'ip-address';
+import { validateBufferLength, validateNonNegativeLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS IPSECKEY (IPsec Key) resource records (Type 45).
+ *
+ * Stores IPsec public keys and gateway information for opportunistic encryption.
+ *
+ * @see RFC 4025
+ */
 export class IPSECKEY {
+    /** IANA resource record type identifier */
     public static readonly type: number = 45;
 
+    /**
+     * Decodes an IPSECKEY record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded IPSECKEY record
+     */
     public static decode (reader: Reader): IPSECKEY.Record {
-        let length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'IPSECKEY RDATA length');
+        let rdataLength = reader.uint16_t(true).toJSNumber();
+
+        // Validate minimum fields are available
+        validateBufferLength(reader, 3, 'IPSECKEY fixed fields');
 
         const precedence = reader.uint8_t().toJSNumber();
-        length -= 1;
+        rdataLength -= 1;
 
         const gatewayType = reader.uint8_t().toJSNumber();
-        length -= 1;
+        rdataLength -= 1;
 
         const algorithm = reader.uint8_t().toJSNumber();
-        length -= 1;
+        rdataLength -= 1;
 
         const [gateway, gatewayLength] = IPSECKEY.decode_gateway(reader, gatewayType);
-        length -= gatewayLength;
+        rdataLength -= gatewayLength;
 
-        const publicKey = reader.bytes(length);
+        validateNonNegativeLength(rdataLength, 'IPSECKEY public key length');
+
+        const publicKey = reader.bytes(rdataLength);
 
         return {
             precedence,
@@ -50,6 +72,13 @@ export class IPSECKEY {
         };
     }
 
+    /**
+     * Encodes an IPSECKEY record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the IPSECKEY record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (
         writer: Writer,
         data: Omit<IPSECKEY.Record, 'gatewayType'>,
@@ -143,9 +172,13 @@ export class IPSECKEY {
 
 export namespace IPSECKEY {
     export type Record = {
+        /** Precedence for this record */
         precedence: number;
+        /** Public key algorithm (0=none, 1=DSA, 2=RSA, 3=ECDSA) */
         algorithm: number;
+        /** The gateway address or domain name */
         gateway?: string;
+        /** The public key material */
         publicKey: Buffer;
     }
 }

@@ -21,13 +21,33 @@
 import type { Reader, Writer } from '@gibme/bytepack';
 import { DNSKEY } from './dnskey';
 
+/**
+ * Encoder for DNS CDNSKEY (Child DNSKEY) resource records (Type 60).
+ *
+ * Contains a child zone's DNSKEY for parent validation during key rollovers.
+ *
+ * @see RFC 7344 Section 3.2
+ */
 export class CDNSKEY {
+    /** IANA resource record type identifier */
     public static readonly type: number = 60;
 
+    /**
+     * Decodes a CDNSKEY record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded CDNSKEY record
+     */
     public static decode (reader: Reader): CDNSKEY.Record {
         return DNSKEY.decode(reader);
     }
 
+    /**
+     * Encodes a CDNSKEY record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the CDNSKEY record to encode
+     */
     public static encode (writer: Writer, data: Omit<CDNSKEY.Record, 'protocol'>): void {
         return DNSKEY.encode(writer, data);
     }

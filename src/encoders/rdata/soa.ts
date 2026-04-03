@@ -20,12 +20,29 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS SOA (Start of Authority) resource records (Type 6).
+ *
+ * Marks the start of a zone of authority and contains zone administration parameters.
+ *
+ * @see RFC 1035 Section 3.3.13
+ */
 export class SOA {
+    /** IANA resource record type identifier */
     public static readonly type: number = 6;
 
+    /**
+     * Decodes a SOA record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded SOA record
+     */
     public static decode (reader: Reader): SOA.Record {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'SOA RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
 
         return {
             mname: Name.decode(reader),
@@ -38,6 +55,13 @@ export class SOA {
         };
     }
 
+    /**
+     * Encodes a SOA record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the SOA record to encode
+     * @param index - compression index for DNS name pointer compression
+     */
     public static encode (writer: Writer, data: SOA.Record, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -64,12 +88,19 @@ export class SOA {
 
 export namespace SOA {
     export type Record = {
+        /** Primary name server for the zone */
         mname: string;
+        /** Email of the zone administrator (encoded as domain name) */
         rname: string;
+        /** Zone serial number */
         serial: number;
+        /** Refresh interval in seconds */
         refresh: number;
+        /** Retry interval in seconds */
         retry: number;
+        /** Expiration time in seconds */
         expire: number;
+        /** Minimum TTL for negative caching */
         minimum: number;
     }
 }

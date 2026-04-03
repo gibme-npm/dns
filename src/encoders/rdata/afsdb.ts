@@ -22,9 +22,23 @@ import type { Reader, Writer } from '@gibme/bytepack';
 import type { Name } from '../';
 import { MX } from './mx';
 
+/**
+ * Encoder for DNS AFSDB (AFS Database) resource records (Type 18).
+ *
+ * Maps a domain name to an AFS cell database server.
+ *
+ * @see RFC 1183 Section 1
+ */
 export class AFSDB {
+    /** IANA resource record type identifier */
     public static readonly type: number = 18;
 
+    /**
+     * Decodes an AFSDB record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded AFSDB record
+     */
     public static decode (reader: Reader): AFSDB.Record {
         const {
             preference: subtype,
@@ -37,6 +51,13 @@ export class AFSDB {
         };
     }
 
+    /**
+     * Encodes an AFSDB record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the AFSDB record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: AFSDB.Record, index: Name.CompressionIndex): void {
         return MX.encode(writer, {
             preference: data.subtype,
@@ -47,7 +68,9 @@ export class AFSDB {
 
 export namespace AFSDB {
     export type Record = {
+        /** AFS server subtype (1 = AFS cell, 2 = DCE cell) */
         subtype: number;
+        /** The hostname of the AFS database server */
         hostname: string;
     }
 }

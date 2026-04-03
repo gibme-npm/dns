@@ -19,10 +19,25 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS OPT (Option) pseudo-resource records (Type 41).
+ *
+ * Carries EDNS(0) extension information in DNS messages.
+ *
+ * @see RFC 6891
+ */
 export class OPT {
+    /** IANA resource record type identifier */
     public static readonly type: number = 41;
 
+    /**
+     * Decodes an OPT record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded OPT record
+     */
     public static decode (reader: Reader): OPT.Record {
         const udpPayloadSize = reader.uint16_t(true).toJSNumber();
 
@@ -34,18 +49,21 @@ export class OPT {
 
         const flag_do = ((flags >> 15) & 0x1) === 1;
 
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'OPT RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
+
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'OPT RDATA payload');
 
         const options = new Map<number, Buffer>();
 
-        const temp = new Reader(reader.bytes(length));
+        while (rdataReader.unreadBytes > 0) {
+            const code = rdataReader.uint16_t(true).toJSNumber();
 
-        while (temp.unreadBytes > 0) {
-            const code = temp.uint16_t(true).toJSNumber();
+            const optionLength = rdataReader.uint16_t(true).toJSNumber();
 
-            const length = temp.uint16_t(true).toJSNumber();
-
-            options.set(code, temp.bytes(length));
+            options.set(code, rdataReader.bytes(optionLength));
         }
 
         return {
@@ -58,6 +76,12 @@ export class OPT {
         };
     }
 
+    /**
+     * Encodes an OPT record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the OPT record to encode
+     */
     public static encode (writer: Writer, data: OPT.Record): void {
         const temp = new Writer();
 
@@ -99,12 +123,19 @@ export class OPT {
 }
 
 export namespace OPT {
+    /** Decoded OPT record data */
     export type Record = {
+        /** Maximum UDP payload size the sender can reassemble */
         udpPayloadSize: number;
+        /** Upper 8 bits of the extended RCODE */
         rcode: number;
+        /** EDNS version supported */
         eDnsVersion: number;
+        /** EDNS flags */
         flags: number;
+        /** DNSSEC OK flag indicating DNSSEC-aware resolver */
         do: boolean;
+        /** List of EDNS option code-data pairs */
         options: Map<number, Buffer>; // TODO: I'd like to handle these better than this
     }
 }

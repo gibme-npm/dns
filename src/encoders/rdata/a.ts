@@ -20,16 +20,42 @@
 
 import type { Reader, Writer } from '@gibme/bytepack';
 import { Address4 } from 'ip-address';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS A (Address) resource records (Type 1).
+ *
+ * Maps a domain name to an IPv4 address.
+ *
+ * @see RFC 1035 Section 3.4.1
+ */
 export class A {
+    /** IANA resource record type identifier */
     public static readonly type: number = 1;
 
+    /**
+     * Decodes an A record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded IPv4 address string
+     */
     public static decode (reader: Reader): string {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'A RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        return Address4.fromHex(reader.bytes(length).toString('hex')).address;
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'A RDATA payload');
+
+        return Address4.fromHex(rdataReader.bytes(rdataLength).toString('hex')).address;
     }
 
+    /**
+     * Encodes an A record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param address - the IPv4 address string
+     */
     public static encode (writer: Writer, address: string): void {
         const buffer = Buffer.from((new Address4(address)).toArray());
 

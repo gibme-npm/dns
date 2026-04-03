@@ -19,16 +19,42 @@
 // SOFTWARE.
 
 import type { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS OPENPGPKEY resource records (Type 61).
+ *
+ * Stores OpenPGP public keys for email addresses in DNS.
+ *
+ * @see RFC 7929
+ */
 export class OPENPGPKEY {
+    /** IANA resource record type identifier */
     public static readonly type: number = 61;
 
+    /**
+     * Decodes an OPENPGPKEY record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the public key data as a Buffer
+     */
     public static decode (reader: Reader): Buffer {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'OPENPGPKEY RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        return reader.bytes(length);
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'OPENPGPKEY RDATA payload');
+
+        return rdataReader.bytes(rdataLength);
     }
 
+    /**
+     * Encodes an OPENPGPKEY record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the public key data
+     */
     public static encode (writer: Writer, data: Buffer): void {
         writer.uint16_t(data.length, true);
 
@@ -37,5 +63,6 @@ export class OPENPGPKEY {
 }
 
 export namespace OPENPGPKEY {
+    /** The OpenPGP public key data stored as a raw Buffer */
     export type Record = Buffer;
 }

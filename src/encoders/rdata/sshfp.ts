@@ -19,22 +19,46 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS SSHFP (SSH Fingerprint) resource records (Type 44).
+ *
+ * Publishes SSH host key fingerprints in DNS for verification.
+ *
+ * @see RFC 4255
+ */
 export class SSHFP {
+    /** IANA resource record type identifier */
     public static readonly type: number = 44;
 
+    /**
+     * Decodes an SSHFP record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded SSHFP record
+     */
     public static decode (reader: Reader): SSHFP.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'SSHFP RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'SSHFP RDATA payload');
 
         return {
-            algorithm: temp.uint8_t().toJSNumber(),
-            hash: temp.uint8_t().toJSNumber(),
-            fingerprint: temp.unreadBuffer
+            algorithm: rdataReader.uint8_t().toJSNumber(),
+            hash: rdataReader.uint8_t().toJSNumber(),
+            fingerprint: rdataReader.unreadBuffer
         };
     }
 
+    /**
+     * Encodes an SSHFP record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the SSHFP record to encode
+     */
     public static encode (writer: Writer, data: SSHFP.Record): void {
         const temp = new Writer();
 
@@ -52,8 +76,11 @@ export class SSHFP {
 
 export namespace SSHFP {
     export type Record = {
+        /** SSH key algorithm (1=RSA, 2=DSA, 3=ECDSA, 4=Ed25519) */
         algorithm: number;
+        /** Fingerprint hash type (1=SHA-1, 2=SHA-256) */
         hash: number;
+        /** The key fingerprint data */
         fingerprint: Buffer;
     }
 }

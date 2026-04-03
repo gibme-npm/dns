@@ -19,7 +19,18 @@
 // SOFTWARE.
 
 import type { Reader, Writer } from '@gibme/bytepack';
+import {
+    DNS_MAX_TYPE_BITMAP_WINDOW,
+    DNS_MIN_TYPE_BITMAP_LENGTH,
+    DNS_MAX_TYPE_BITMAP_LENGTH,
+    ValidationErrors
+} from '../constants/validation';
+import { validateBufferLength, validateRange } from '../utils/validation';
 
+/**
+ * Encoder for NSEC/NSEC3 type bitmaps as defined in RFC 4034 Section 4.1.2.
+ * Represents a set of DNS record types present at a given name.
+ */
 export class TypeBitMap {
     /**
      * Decodes a type bitmap from the provided byte stream
@@ -29,9 +40,28 @@ export class TypeBitMap {
         const types: number[] = [];
 
         while (reader.unreadBytes > 0) {
+            // Validate buffer has window number and length
+            validateBufferLength(reader, 2, 'TypeBitMap window header');
+
             const window = reader.uint8_t().toJSNumber();
 
+            // Validate window number
+            if (window >= DNS_MAX_TYPE_BITMAP_WINDOW) {
+                throw new Error(ValidationErrors.INVALID_TYPE_BITMAP_WINDOW(window));
+            }
+
             const length = reader.uint8_t().toJSNumber();
+
+            // Validate bitmap length
+            validateRange(
+                length,
+                DNS_MIN_TYPE_BITMAP_LENGTH,
+                DNS_MAX_TYPE_BITMAP_LENGTH,
+                'TypeBitMap window length'
+            );
+
+            // Validate buffer has bitmap data
+            validateBufferLength(reader, length, 'TypeBitMap window data');
 
             for (let i = 0; i < length; i++) {
                 const b = reader.uint8_t().toJSNumber();
@@ -53,24 +83,43 @@ export class TypeBitMap {
      * @param types
      */
     public static encode (writer: Writer, types: number[]): void {
-        const typesByWindow: number[][] = [];
+        // Use Map instead of sparse array to prevent DoS
+        const typesByWindow = new Map<number, number[]>();
 
         for (const type of types) {
-            typesByWindow[type >> 8] ??= [];
+            const window = type >> 8;
 
-            typesByWindow[type >> 8][(type >> 3) & 0x1f] |= 1 << (7 - (type & 0x7));
+            // Validate window number
+            if (window >= DNS_MAX_TYPE_BITMAP_WINDOW) {
+                throw new Error(ValidationErrors.INVALID_TYPE_BITMAP_WINDOW(window));
+            }
+
+            if (!typesByWindow.has(window)) {
+                typesByWindow.set(window, []);
+            }
+
+            const windowArray = typesByWindow.get(window)!;
+            const byteIndex = (type >> 3) & 0x1f;
+
+            windowArray[byteIndex] ??= 0;
+            windowArray[byteIndex] |= 1 << (7 - (type & 0x7));
         }
 
-        for (let i = 0; i < typesByWindow.length; i++) {
-            if (typeof typesByWindow[i] !== 'undefined') {
-                const window = Buffer.from(typesByWindow[i]);
+        // Sort windows for consistent encoding
+        const sortedWindows = Array.from(typesByWindow.keys()).sort((a, b) => a - b);
 
-                writer.uint8_t(i);
+        for (const window of sortedWindows) {
+            const windowData = typesByWindow.get(window)!;
+            const buffer = Buffer.from(windowData);
 
-                writer.uint8_t(window.length);
-
-                writer.bytes(window);
+            // Validate bitmap length
+            if (buffer.length < DNS_MIN_TYPE_BITMAP_LENGTH || buffer.length > DNS_MAX_TYPE_BITMAP_LENGTH) {
+                throw new Error(ValidationErrors.INVALID_TYPE_BITMAP_LENGTH(buffer.length));
             }
+
+            writer.uint8_t(window);
+            writer.uint8_t(buffer.length);
+            writer.bytes(buffer);
         }
     }
 }

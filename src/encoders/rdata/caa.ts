@@ -20,21 +20,39 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { String } from '../';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS CAA (Certification Authority Authorization) resource records (Type 257).
+ *
+ * Specifies which certificate authorities are authorized to issue certificates for a domain.
+ *
+ * @see RFC 8659
+ */
 export class CAA {
+    /** IANA resource record type identifier */
     public static readonly type: number = 257;
     public static readonly ISSUER_CRITICAL = 1 << 7;
 
+    /**
+     * Decodes a CAA record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded CAA record
+     */
     public static decode (reader: Reader): CAA.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'CAA RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'CAA RDATA payload');
 
-        const flags = temp.uint8_t().toJSNumber();
+        const flags = rdataReader.uint8_t().toJSNumber();
 
-        const tag = String.decode(temp);
+        const tag = String.decode(rdataReader);
 
-        const value = temp.unreadBuffer.toString('utf8');
+        const value = rdataReader.unreadBuffer.toString('utf8');
 
         return {
             flags,
@@ -44,6 +62,12 @@ export class CAA {
         };
     }
 
+    /**
+     * Encodes a CAA record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the CAA record to encode
+     */
     public static encode (writer: Writer, data: CAA.Record): void {
         const temp = new Writer();
 
@@ -69,9 +93,13 @@ export class CAA {
 
 export namespace CAA {
     export type Record = {
+        /** CAA flags byte */
         flags: number;
+        /** The property tag (e.g. issue, issuewild, iodef) */
         tag: string;
+        /** The property value */
         value: string;
+        /** Whether the issuer critical flag is set */
         issuerCritical: boolean;
     }
 }

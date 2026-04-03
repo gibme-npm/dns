@@ -19,14 +19,32 @@
 // SOFTWARE.
 
 import type { Reader, Writer } from '@gibme/bytepack';
+import { DNS_MAX_STRING_LENGTH, ValidationErrors } from '../constants/validation';
+import { validateBufferLength, getUtf8ByteLength } from '../utils/validation';
 
+/**
+ * Encoder for DNS character-strings as defined in RFC 1035 Section 3.3.
+ * Handles length-prefixed strings with a maximum of 255 bytes.
+ */
 export class String {
     /**
      * Decodes a simple string from the provided byte stream
      * @param reader
      */
     public static decode (reader: Reader): string {
+        // Validate buffer has length byte
+        validateBufferLength(reader, 1, 'String length byte');
+
         const length = reader.uint8_t().toJSNumber();
+
+        // Validate length doesn't exceed maximum
+        if (length > DNS_MAX_STRING_LENGTH) {
+            throw new Error(ValidationErrors.STRING_TOO_LONG(length));
+        }
+
+        // Validate buffer has string data
+        validateBufferLength(reader, length, 'String data');
+
         return reader.bytes(length).toString('utf8');
     }
 
@@ -36,7 +54,15 @@ export class String {
      * @param str
      */
     public static encode (writer: Writer, str: string): void {
-        writer.uint8_t(str.length);
+        // Get actual UTF-8 byte length (not character count)
+        const byteLength = getUtf8ByteLength(str);
+
+        // Validate byte length doesn't exceed maximum
+        if (byteLength > DNS_MAX_STRING_LENGTH) {
+            throw new Error(ValidationErrors.STRING_TOO_LONG(byteLength));
+        }
+
+        writer.uint8_t(byteLength);
         writer.bytes(Buffer.from(str, 'utf8'));
     }
 }

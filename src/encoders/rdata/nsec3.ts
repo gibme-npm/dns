@@ -21,30 +21,48 @@
 import { Reader, Writer } from '@gibme/bytepack';
 import { TypeBitMap } from '../';
 import { RType, RTYPE } from '../../types';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS NSEC3 (Next Secure v3) resource records (Type 50).
+ *
+ * Provides hashed authenticated denial of existence for DNSSEC.
+ *
+ * @see RFC 5155
+ */
 export class NSEC3 {
+    /** IANA resource record type identifier */
     public static readonly type: number = 50;
 
+    /**
+     * Decodes an NSEC3 record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded NSEC3 record
+     */
     public static decode (reader: Reader): NSEC3.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'NSEC3 RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'NSEC3 RDATA payload');
 
-        const algorithm = temp.uint8_t().toJSNumber();
+        const algorithm = rdataReader.uint8_t().toJSNumber();
 
-        const flags = temp.uint8_t().toJSNumber();
+        const flags = rdataReader.uint8_t().toJSNumber();
 
-        const iterations = temp.uint16_t(true).toJSNumber();
+        const iterations = rdataReader.uint16_t(true).toJSNumber();
 
-        const salt_length = temp.uint8_t().toJSNumber();
+        const salt_length = rdataReader.uint8_t().toJSNumber();
 
-        const salt = temp.bytes(salt_length);
+        const salt = rdataReader.bytes(salt_length);
 
-        const nextDomain_length = temp.uint8_t().toJSNumber();
+        const nextDomain_length = rdataReader.uint8_t().toJSNumber();
 
-        const nextDomain = temp.bytes(nextDomain_length);
+        const nextDomain = rdataReader.bytes(nextDomain_length);
 
-        const types = TypeBitMap.decode(temp);
+        const types = TypeBitMap.decode(rdataReader);
 
         return {
             algorithm,
@@ -56,6 +74,12 @@ export class NSEC3 {
         };
     }
 
+    /**
+     * Encodes an NSEC3 record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the NSEC3 record to encode
+     */
     public static encode (writer: Writer, data: NSEC3.Record): void {
         const temp = new Writer();
 
@@ -83,11 +107,17 @@ export class NSEC3 {
 
 export namespace NSEC3 {
     export type Record = {
+        /** Hash algorithm (1=SHA-1) */
         algorithm: number;
+        /** NSEC3 flags (bit 0: opt-out) */
         flags: number;
+        /** Number of additional hash iterations */
         iterations: number;
+        /** Salt value for the hash */
         salt: Buffer;
+        /** Hash of the next owner name */
         nextDomain: Buffer;
+        /** Bitmap of record types at the hashed owner name */
         types: RTYPE[];
     }
 }

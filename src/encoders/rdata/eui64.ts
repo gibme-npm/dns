@@ -20,10 +20,19 @@
 
 import { EUI48 } from './eui48';
 
+/**
+ * Encoder for DNS EUI64 (64-bit Extended Unique Identifier) resource records (Type 109).
+ *
+ * Stores a 64-bit IEEE EUI-64 address.
+ *
+ * @see RFC 7043 Section 4
+ */
 export class EUI64 extends EUI48 {
+    /** IANA resource record type identifier */
     public static readonly type: number = 109;
 }
 
 export namespace EUI64 {
+    /** The EUI64 record data represented as a colon-separated EUI-64 address string */
     export type Record = EUI48.Record;
 }

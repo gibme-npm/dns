@@ -22,10 +22,16 @@
  * The Packet operation code
  */
 export enum OpCode {
+    /** Standard query (RFC 1035) */
     Query = 0,
+    /** Inverse query (obsoleted by RFC 3425) */
     IQuery = 1,
+    /** Server status request (RFC 1035) */
     Status = 2,
+    /** Zone change notification (RFC 1996) */
     Notify = 4,
+    /** Dynamic update (RFC 2136) */
     Update = 5,
+    /** DNS Stateful Operations (RFC 8490) */
     Stateful = 6
 }

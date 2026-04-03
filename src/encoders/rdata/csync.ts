@@ -21,20 +21,38 @@
 import { Reader, Writer } from '@gibme/bytepack';
 import { TypeBitMap } from '../';
 import { RType, RTYPE } from '../../types';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS CSYNC (Child-to-Parent Synchronization) resource records (Type 62).
+ *
+ * Indicates which records in a child zone should be synchronized to the parent.
+ *
+ * @see RFC 7477
+ */
 export class CSYNC {
+    /** IANA resource record type identifier */
     public static readonly type: number = 62;
 
+    /**
+     * Decodes a CSYNC record from the byte stream.
+     *
+     * @param reader - the byte stream reader positioned at the CSYNC RDATA
+     * @returns the decoded CSYNC record
+     */
     public static decode (reader: Reader): CSYNC.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'CSYNC RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'CSYNC RDATA payload');
 
-        const serial = temp.uint32_t(true).toJSNumber();
+        const serial = rdataReader.uint32_t(true).toJSNumber();
 
-        const flags = temp.uint16_t(true).toJSNumber();
+        const flags = rdataReader.uint16_t(true).toJSNumber();
 
-        const types = TypeBitMap.decode(new Reader(temp.unreadBuffer));
+        const types = TypeBitMap.decode(new Reader(rdataReader.unreadBuffer));
 
         return {
             serial,
@@ -43,6 +61,12 @@ export class CSYNC {
         };
     }
 
+    /**
+     * Encodes a CSYNC record into the byte stream.
+     *
+     * @param writer - the byte stream writer to encode into
+     * @param data - the CSYNC record to encode
+     */
     public static encode (writer: Writer, data: CSYNC.Record): void {
         const temp = new Writer();
 
@@ -60,8 +84,11 @@ export class CSYNC {
 
 export namespace CSYNC {
     export type Record = {
+        /** The SOA serial number for synchronization */
         serial: number;
+        /** CSYNC flags (bit 0: immediate, bit 1: SOA minimum) */
         flags: number;
+        /** Bitmap of record types to synchronize */
         types: RTYPE[];
     }
 }

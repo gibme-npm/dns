@@ -20,12 +20,29 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS RP (Responsible Person) resource records (Type 17).
+ *
+ * Identifies the responsible person for a domain name.
+ *
+ * @see RFC 1183 Section 2
+ */
 export class RP {
+    /** IANA resource record type identifier */
     public static readonly type: number = 17;
 
+    /**
+     * Decodes an RP record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded RP record
+     */
     public static decode (reader: Reader): RP.Record {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'RP RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
 
         return {
             mbox: Name.decode(reader, true),
@@ -33,6 +50,13 @@ export class RP {
         };
     }
 
+    /**
+     * Encodes an RP record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the RP record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: RP.Record, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -47,8 +71,11 @@ export class RP {
 }
 
 export namespace RP {
+    /** Decoded RP record data */
     export type Record = {
+        /** Mailbox of the responsible person (encoded as a domain name) */
         mbox: string;
+        /** Domain name pointing to associated TXT records */
         txt: string;
     }
 }

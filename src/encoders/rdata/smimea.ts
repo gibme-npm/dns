@@ -19,23 +19,47 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS SMIMEA (S/MIME Certificate Association) resource records (Type 53).
+ *
+ * Associates S/MIME certificates with email addresses via DNS.
+ *
+ * @see RFC 8162
+ */
 export class SMIMEA {
+    /** IANA resource record type identifier */
     public static readonly type: number = 53;
 
+    /**
+     * Decodes an SMIMEA record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded SMIMEA record
+     */
     public static decode (reader: Reader): SMIMEA.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'SMIMEA RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'SMIMEA RDATA payload');
 
         return {
-            certificateUsage: temp.uint8_t().toJSNumber(),
-            selector: temp.uint8_t().toJSNumber(),
-            matchingType: temp.uint8_t().toJSNumber(),
-            certificateAssociationData: temp.unreadBuffer
+            certificateUsage: rdataReader.uint8_t().toJSNumber(),
+            selector: rdataReader.uint8_t().toJSNumber(),
+            matchingType: rdataReader.uint8_t().toJSNumber(),
+            certificateAssociationData: rdataReader.unreadBuffer
         };
     }
 
+    /**
+     * Encodes an SMIMEA record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the SMIMEA record to encode
+     */
     public static encode (writer: Writer, data: SMIMEA.Record): void {
         const temp = new Writer();
 
@@ -55,9 +79,13 @@ export class SMIMEA {
 
 export namespace SMIMEA {
     export type Record = {
+        /** Certificate usage (0=CA constraint, 1=service certificate, 2=trust anchor, 3=domain-issued) */
         certificateUsage: number;
+        /** Selector (0=full certificate, 1=SubjectPublicKeyInfo) */
         selector: number;
+        /** Matching type (0=exact, 1=SHA-256, 2=SHA-512) */
         matchingType: number;
+        /** Certificate association data */
         certificateAssociationData: Buffer;
     }
 }

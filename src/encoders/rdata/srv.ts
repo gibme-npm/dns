@@ -20,12 +20,32 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS SRV (Service Locator) resource records (Type 33).
+ *
+ * Specifies the location of services by protocol and domain.
+ *
+ * @see RFC 2782
+ */
 export class SRV {
+    /** IANA resource record type identifier */
     public static readonly type: number = 33;
 
+    /**
+     * Decodes an SRV record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded SRV record
+     */
     public static decode (reader: Reader): SRV.Record {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'SRV RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
+
+        // Validate minimum fields are available
+        validateBufferLength(reader, 6, 'SRV fixed fields');
 
         return {
             priority: reader.uint16_t(true).toJSNumber(),
@@ -35,6 +55,13 @@ export class SRV {
         };
     }
 
+    /**
+     * Encodes an SRV record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the SRV record to encode
+     * @param index - compression index for DNS name pointer compression
+     */
     public static encode (writer: Writer, data: SRV.Record, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -54,9 +81,13 @@ export class SRV {
 
 export namespace SRV {
     export type Record = {
+        /** Service priority (lower is preferred) */
         priority: number;
+        /** Relative weight for records with equal priority */
         weight: number;
+        /** TCP or UDP port number */
         port: number;
+        /** Domain name of the target host */
         target: string;
     }
 }

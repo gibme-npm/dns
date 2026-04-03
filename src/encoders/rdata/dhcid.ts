@@ -19,22 +19,46 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS DHCID (DHCP Identifier) resource records (Type 49).
+ *
+ * Associates a DHCP client identity with a DNS name for conflict resolution.
+ *
+ * @see RFC 4701
+ */
 export class DHCID {
+    /** IANA resource record type identifier */
     public static readonly type: number = 49;
 
+    /**
+     * Decodes a DHCID record from the byte stream.
+     *
+     * @param reader - the byte stream reader positioned at the DHCID RDATA
+     * @returns the decoded DHCID record
+     */
     public static decode (reader: Reader): DHCID.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'DHCID RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'DHCID RDATA payload');
 
         return {
-            type: temp.uint16_t(true).toJSNumber(),
-            digestType: temp.uint8_t().toJSNumber(),
-            digest: temp.unreadBuffer
+            type: rdataReader.uint16_t(true).toJSNumber(),
+            digestType: rdataReader.uint8_t().toJSNumber(),
+            digest: rdataReader.unreadBuffer
         };
     }
 
+    /**
+     * Encodes a DHCID record into the byte stream.
+     *
+     * @param writer - the byte stream writer to encode into
+     * @param data - the DHCID record to encode
+     */
     public static encode (writer: Writer, data: DHCID.Record): void {
         const temp = new Writer();
 
@@ -52,8 +76,11 @@ export class DHCID {
 
 export namespace DHCID {
     export type Record = {
+        /** DHCID identifier type code */
         type: number;
+        /** Digest algorithm type */
         digestType: number;
+        /** The DHCID digest data */
         digest: Buffer;
     }
 }

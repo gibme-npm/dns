@@ -19,23 +19,47 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS ZONEMD (Zone Message Digest) resource records (Type 63).
+ *
+ * Provides a cryptographic digest of a DNS zone's contents.
+ *
+ * @see RFC 8976
+ */
 export class ZONEMD {
+    /** IANA resource record type identifier */
     public static readonly type: number = 63;
 
+    /**
+     * Decodes a ZONEMD record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded ZONEMD record
+     */
     public static decode (reader: Reader): ZONEMD.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'ZONEMD RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'ZONEMD RDATA payload');
 
         return {
-            serial: temp.uint32_t(true).toJSNumber(),
-            scheme: temp.uint8_t().toJSNumber(),
-            algorithm: temp.uint8_t().toJSNumber(),
-            digest: temp.unreadBuffer
+            serial: rdataReader.uint32_t(true).toJSNumber(),
+            scheme: rdataReader.uint8_t().toJSNumber(),
+            algorithm: rdataReader.uint8_t().toJSNumber(),
+            digest: rdataReader.unreadBuffer
         };
     }
 
+    /**
+     * Encodes a ZONEMD record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the ZONEMD record to encode
+     */
     public static encode (writer: Writer, data: ZONEMD.Record): void {
         const temp = new Writer();
 
@@ -55,9 +79,13 @@ export class ZONEMD {
 
 export namespace ZONEMD {
     export type Record = {
+        /** SOA serial number the digest was generated from */
         serial: number;
+        /** Digest scheme (1=SIMPLE) */
         scheme: number;
+        /** Hash algorithm (1=SHA-384, 2=SHA-512) */
         algorithm: number;
+        /** The zone digest data */
         digest: Buffer;
     }
 }

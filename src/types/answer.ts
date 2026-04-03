@@ -31,11 +31,17 @@ export class Answer<DataType = any> {
      */
     public static readonly INVALID_RTYPES: Set<string> = new Set(['ANY', 'IXFR', 'AXFR']);
 
+    /** The domain name this resource record belongs to */
     public name: string;
+    /** The resource record class (e.g. IN, CH, HS) */
     public class: RCLASS;
+    /** The resource record type (e.g. A, AAAA, MX) */
     public type: RTYPE;
+    /** The time-to-live in seconds */
     public ttl: number;
+    /** The decoded resource record data */
     public data: DataType;
+    /** Whether cached records should be flushed (mDNS) */
     public flush: boolean;
 
     /**

@@ -23,9 +23,12 @@ import { Socket } from 'net';
 import { createSocket } from 'dgram';
 import { Address4, Address6 } from 'ip-address';
 import { Reader, Writer } from '@gibme/bytepack';
+import { DNS_MAX_TCP_MESSAGE_LENGTH, ValidationErrors } from './constants/validation';
 
 export * from './types';
 export * from './encoders';
+export * from './constants/validation';
+export * from './utils/validation';
 
 /**
  * Performs a DNS lookup of the supplied Questions.
@@ -159,6 +162,12 @@ export const lookup = async (
 
             if (reader.unreadBytes >= 2 && length === 0) {
                 length = reader.uint16_t(true).toJSNumber();
+
+                // Validate TCP message length
+                if (length > DNS_MAX_TCP_MESSAGE_LENGTH) {
+                    cleanup();
+                    return resolve(new Error(ValidationErrors.TCP_MESSAGE_TOO_LONG(length)));
+                }
             } else if (length !== 0 && reader.unreadBytes >= length) {
                 cleanup();
 

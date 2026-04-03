@@ -19,22 +19,46 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS URI (Uniform Resource Identifier) resource records (Type 256).
+ *
+ * Publishes URI mappings for domain names.
+ *
+ * @see RFC 7553
+ */
 export class URI {
+    /** IANA resource record type identifier */
     public static readonly type: number = 256;
 
+    /**
+     * Decodes a URI record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded URI record
+     */
     public static decode (reader: Reader): URI.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'URI RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'URI RDATA payload');
 
         return {
-            priority: temp.uint16_t(true).toJSNumber(),
-            weight: temp.uint16_t(true).toJSNumber(),
-            target: temp.unreadBuffer.toString('utf8')
+            priority: rdataReader.uint16_t(true).toJSNumber(),
+            weight: rdataReader.uint16_t(true).toJSNumber(),
+            target: rdataReader.unreadBuffer.toString('utf8')
         };
     }
 
+    /**
+     * Encodes a URI record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the URI record to encode
+     */
     public static encode (writer: Writer, data: URI.Record): void {
         const temp = new Writer();
 
@@ -52,8 +76,11 @@ export class URI {
 
 export namespace URI {
     export type Record = {
+        /** Service priority (lower is preferred) */
         priority: number;
+        /** Relative weight for records with equal priority */
         weight: number;
+        /** The URI target string */
         target: string;
     }
 }

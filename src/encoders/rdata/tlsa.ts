@@ -19,23 +19,47 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS TLSA (Transport Layer Security Authentication) resource records (Type 52).
+ *
+ * Associates TLS certificates with domain names for DANE.
+ *
+ * @see RFC 6698
+ */
 export class TLSA {
+    /** IANA resource record type identifier */
     public static readonly type: number = 52;
 
+    /**
+     * Decodes a TLSA record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded TLSA record
+     */
     public static decode (reader: Reader): TLSA.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'TLSA RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'TLSA RDATA payload');
 
         return {
-            usage: temp.uint8_t().toJSNumber(),
-            selector: temp.uint8_t().toJSNumber(),
-            matchingType: temp.uint8_t().toJSNumber(),
-            certificate: temp.unreadBuffer
+            usage: rdataReader.uint8_t().toJSNumber(),
+            selector: rdataReader.uint8_t().toJSNumber(),
+            matchingType: rdataReader.uint8_t().toJSNumber(),
+            certificate: rdataReader.unreadBuffer
         };
     }
 
+    /**
+     * Encodes a TLSA record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the TLSA record to encode
+     */
     public static encode (writer: Writer, data: TLSA.Record): void {
         const temp = new Writer();
 
@@ -55,9 +79,13 @@ export class TLSA {
 
 export namespace TLSA {
     export type Record = {
+        /** Certificate association data */
         certificate: Buffer;
+        /** Certificate usage (0=CA constraint, 1=service certificate, 2=trust anchor, 3=domain-issued) */
         usage: number;
+        /** Selector (0=full certificate, 1=SubjectPublicKeyInfo) */
         selector: number;
+        /** Matching type (0=exact, 1=SHA-256, 2=SHA-512) */
         matchingType: number;
     }
 }

@@ -20,12 +20,19 @@
 
 import { Reader } from '@gibme/bytepack';
 
+/**
+ * The DNS resource record class identifier
+ */
 export type RCLASS = 'IN' | 'CH' | 'HS' | 'NONE' | 'ANY';
 
 /**
+ * Handles encoding and decoding of DNS resource record classes,
+ * including the mDNS flush/QU bit in the high bit of the class field.
+ *
  * @internal
  */
 export class RClass {
+    /** Maps numeric class IDs to their string names */
     public static readonly ID_TO_NAME: Map<number, RCLASS> = new Map<number, RCLASS>([
         [1, 'IN'],
         [3, 'CH'],
@@ -34,14 +41,23 @@ export class RClass {
         [255, 'ANY']
     ]);
 
+    /** Maps string class names to their numeric IDs */
     public static readonly NAME_TO_ID: Map<RCLASS, number> = new Map(
         Array.from(RClass.ID_TO_NAME.entries()).map(([id, name]) => [name, id])
     );
 
+    /** The numeric class identifier */
     public readonly id: number;
+    /** The string name of the class (e.g. IN, CH) */
     public readonly name: RCLASS;
+    /** The mDNS flush bit (answers) or QU bit (questions) */
     public flushOrQu: boolean;
 
+    /**
+     * Constructs a new Resource Record Class
+     * @param nameOrId - the class name or numeric ID
+     * @param flushOrQu - optional override for the flush/QU bit
+     */
     constructor (nameOrId: RCLASS | number, flushOrQu?: boolean) {
         if (typeof nameOrId === 'string') {
             this.name = nameOrId.toUpperCase() as RCLASS;
@@ -68,6 +84,9 @@ export class RClass {
         }
     }
 
+    /**
+     * Returns the class as a 2-byte big-endian Buffer, with flush/QU bit injected
+     */
     public get buffer (): Buffer {
         const buffer = Buffer.alloc(2);
 
@@ -78,6 +97,10 @@ export class RClass {
         return buffer;
     }
 
+    /**
+     * Decodes a Resource Record Class from the byte stream
+     * @param buffer - the byte stream or raw buffer
+     */
     public static from (buffer: Reader | Buffer): RClass {
         if (Buffer.isBuffer(buffer)) {
             buffer = new Reader(buffer);
@@ -88,6 +111,10 @@ export class RClass {
         return new RClass(klass);
     }
 
+    /**
+     * Extracts the flush/QU bit and base class ID from a raw 16-bit class value
+     * @param type - the raw 16-bit class field value
+     */
     public static parseFlushOrQu (type: number): { qClass: number; flushOrQu: boolean } {
         const flushOrQu = (type & 0x8000) !== 0;
 
@@ -99,10 +126,19 @@ export class RClass {
         };
     }
 
+    /**
+     * Injects the flush/QU bit into a class ID to produce the raw 16-bit value
+     * @param type - the base class ID
+     * @param flushOrQu - whether to set the high bit
+     */
     public static injectFlushOrQu (type: number, flushOrQu: boolean): number {
         return (flushOrQu ? 0x8000 : 0) | (type & 0x7FFF);
     }
 
+    /**
+     * Converts a class name to its numeric ID
+     * @param name - the class name
+     */
     public static nameToId (name: RCLASS): number {
         name = name.toUpperCase() as RCLASS;
 
@@ -117,10 +153,17 @@ export class RClass {
         return 0;
     }
 
+    /**
+     * Converts a numeric class ID to its name
+     * @param type - the numeric class ID
+     */
     public static idToName (type: number): RCLASS {
         return RClass.ID_TO_NAME.get(type) ?? `UNKNOWN.${type}` as RCLASS;
     }
 
+    /**
+     * Returns the class name as a string
+     */
     public toString (): string {
         return this.name;
     }

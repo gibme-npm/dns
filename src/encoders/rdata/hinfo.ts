@@ -20,19 +20,45 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { String } from '../';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS HINFO (Host Information) resource records (Type 13).
+ *
+ * Describes the hardware and operating system of a host.
+ *
+ * @see RFC 1035 Section 3.3.2
+ */
 export class HINFO {
+    /** IANA resource record type identifier */
     public static readonly type: number = 13;
 
+    /**
+     * Decodes an HINFO record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded HINFO record
+     */
     public static decode (reader: Reader): HINFO.Record {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'HINFO RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
+
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'HINFO RDATA payload');
 
         return {
-            cpu: String.decode(reader),
-            os: String.decode(reader)
+            cpu: String.decode(rdataReader),
+            os: String.decode(rdataReader)
         };
     }
 
+    /**
+     * Encodes an HINFO record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the HINFO record to encode
+     */
     public static encode (writer: Writer, data: HINFO.Record): void {
         const temp = new Writer();
 
@@ -48,7 +74,9 @@ export class HINFO {
 
 export namespace HINFO {
     export type Record = {
+        /** CPU type or architecture */
         cpu: string;
+        /** Operating system name */
         os: string;
     }
 }

@@ -19,24 +19,42 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS NSEC3PARAM (NSEC3 Parameters) resource records (Type 51).
+ *
+ * Specifies parameters for NSEC3 hashing in a zone.
+ *
+ * @see RFC 5155 Section 4
+ */
 export class NSEC3PARAM {
+    /** IANA resource record type identifier */
     public static readonly type: number = 51;
 
+    /**
+     * Decodes an NSEC3PARAM record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded NSEC3PARAM record
+     */
     public static decode (reader: Reader): NSEC3PARAM.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'NSEC3PARAM RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'NSEC3PARAM RDATA payload');
 
-        const algorithm = temp.uint8_t().toJSNumber();
+        const algorithm = rdataReader.uint8_t().toJSNumber();
 
-        const flags = temp.uint8_t().toJSNumber();
+        const flags = rdataReader.uint8_t().toJSNumber();
 
-        const iterations = temp.uint16_t(true).toJSNumber();
+        const iterations = rdataReader.uint16_t(true).toJSNumber();
 
-        const salt_length = temp.uint8_t().toJSNumber();
+        const salt_length = rdataReader.uint8_t().toJSNumber();
 
-        const salt = temp.bytes(salt_length);
+        const salt = rdataReader.bytes(salt_length);
 
         return {
             algorithm,
@@ -46,6 +64,12 @@ export class NSEC3PARAM {
         };
     }
 
+    /**
+     * Encodes an NSEC3PARAM record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the NSEC3PARAM record to encode
+     */
     public static encode (writer: Writer, data: NSEC3PARAM.Record): void {
         const temp = new Writer();
 
@@ -66,10 +90,15 @@ export class NSEC3PARAM {
 }
 
 export namespace NSEC3PARAM {
+    /** Decoded NSEC3PARAM record data */
     export type Record = {
+        /** Hash algorithm (1=SHA-1) */
         algorithm: number;
+        /** NSEC3PARAM flags */
         flags: number;
+        /** Number of additional hash iterations */
         iterations: number;
+        /** Salt value for the hash */
         salt: Buffer;
     }
 }

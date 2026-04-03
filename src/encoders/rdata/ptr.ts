@@ -20,16 +20,40 @@
 
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS PTR (Pointer) resource records (Type 12).
+ *
+ * Maps an address to a canonical domain name for reverse DNS lookups.
+ *
+ * @see RFC 1035 Section 3.3.12
+ */
 export class PTR {
+    /** IANA resource record type identifier */
     public static readonly type: number = 12;
 
+    /**
+     * Decodes a PTR record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the target domain name
+     */
     public static decode (reader: Reader): string {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'PTR RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
 
         return Name.decode(reader);
     }
 
+    /**
+     * Encodes a PTR record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param name - the target domain name
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, name: string, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -42,5 +66,6 @@ export class PTR {
 }
 
 export namespace PTR {
+    /** The target domain name for the PTR record */
     export type Record = string;
 }

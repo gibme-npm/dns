@@ -19,21 +19,39 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS TXT (Text) resource records (Type 16).
+ *
+ * Holds arbitrary text strings, commonly used for SPF, DKIM, and domain verification.
+ *
+ * @see RFC 1035 Section 3.3.14
+ */
 export class TXT {
+    /** IANA resource record type identifier */
     public static readonly type: number = 16;
 
+    /**
+     * Decodes a TXT record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded text strings
+     */
     public static decode (reader: Reader): Record<string, string> {
         const result: Record<string, string> = {};
 
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'TXT RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'TXT RDATA payload');
 
-        while (temp.unreadBytes > 0) {
-            const length = temp.uint8_t().toJSNumber();
+        while (rdataReader.unreadBytes > 0) {
+            const length = rdataReader.uint8_t().toJSNumber();
 
-            const [key, ...value] = temp.bytes(length).toString('utf8').split('=');
+            const [key, ...value] = rdataReader.bytes(length).toString('utf8').split('=');
 
             result[key.trim()] = (value.join('=') ?? '').trim();
         }
@@ -41,6 +59,12 @@ export class TXT {
         return result;
     }
 
+    /**
+     * Encodes a TXT record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the text strings to encode
+     */
     public static encode (writer: Writer, data: Record<string, string>): void {
         const temp = new Writer();
 

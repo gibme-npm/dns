@@ -24,6 +24,7 @@ import { Question } from './question';
 import { Answer } from './answer';
 import { OpCode } from './opcode';
 import { RCode } from './rcode';
+import { DNS_MIN_PACKET_SIZE, DNS_MAX_SECTION_COUNT, ValidationErrors } from '../constants/validation';
 
 /**
  * Represents the packet type
@@ -118,56 +119,79 @@ export class Packet {
         if (Buffer.isBuffer(bufferOrParams)) {
             const reader = new Reader(bufferOrParams);
 
-            if (reader.unreadBytes < 12) {
-                throw new Error(`Not enough bytes to decode header: ${reader.unreadBytes} < 12`);
+            // Validate minimum packet size
+            if (reader.unreadBytes < DNS_MIN_PACKET_SIZE) {
+                throw new Error(ValidationErrors.PACKET_TOO_SMALL(reader.unreadBytes));
             }
 
-            this.id = reader.uint16_t(true).toJSNumber();
+            try {
+                this.id = reader.uint16_t(true).toJSNumber();
 
-            const flags = reader.uint16_t(true).toJSNumber();
+                const flags = reader.uint16_t(true).toJSNumber();
 
-            this.type = (flags & 0x8000) !== 0 ? 1 : 0;
+                this.type = (flags & 0x8000) !== 0 ? 1 : 0;
 
-            this.opcode = (flags >> 11) & 0xf;
+                this.opcode = (flags >> 11) & 0xf;
 
-            this.authoritative_answer = ((flags >> 10) & 0x1) === 1;
+                this.authoritative_answer = ((flags >> 10) & 0x1) === 1;
 
-            this.truncated = ((flags >> 9) & 0x1) === 1;
+                this.truncated = ((flags >> 9) & 0x1) === 1;
 
-            this.recursion_desired = ((flags >> 8) & 0x1) === 1;
+                this.recursion_desired = ((flags >> 8) & 0x1) === 1;
 
-            this.recursion_available = ((flags >> 7) & 0x1) === 1;
+                this.recursion_available = ((flags >> 7) & 0x1) === 1;
 
-            this.z = ((flags >> 6) & 0x1) === 1;
+                this.z = ((flags >> 6) & 0x1) === 1;
 
-            this.authentic_data = ((flags >> 5) & 0x1) === 1;
+                this.authentic_data = ((flags >> 5) & 0x1) === 1;
 
-            this.checking_disabled = ((flags >> 4) & 0x1) === 1;
+                this.checking_disabled = ((flags >> 4) & 0x1) === 1;
 
-            this.rcode = flags & 0xf;
+                this.rcode = flags & 0xf;
 
-            const QDCOUNT = reader.uint16_t(true).toJSNumber();
+                const QDCOUNT = reader.uint16_t(true).toJSNumber();
 
-            const ANCOUNT = reader.uint16_t(true).toJSNumber();
+                const ANCOUNT = reader.uint16_t(true).toJSNumber();
 
-            const NSCOUNT = reader.uint16_t(true).toJSNumber();
+                const NSCOUNT = reader.uint16_t(true).toJSNumber();
 
-            const ARCOUNT = reader.uint16_t(true).toJSNumber();
+                const ARCOUNT = reader.uint16_t(true).toJSNumber();
 
-            for (let i = 0; i < QDCOUNT; i++) {
-                this.questions.push(Question.from(reader));
-            }
+                // Validate section counts to prevent DoS
+                if (QDCOUNT > DNS_MAX_SECTION_COUNT) {
+                    throw new Error(ValidationErrors.SECTION_COUNT_EXCEEDED('Question', QDCOUNT));
+                }
+                if (ANCOUNT > DNS_MAX_SECTION_COUNT) {
+                    throw new Error(ValidationErrors.SECTION_COUNT_EXCEEDED('Answer', ANCOUNT));
+                }
+                if (NSCOUNT > DNS_MAX_SECTION_COUNT) {
+                    throw new Error(ValidationErrors.SECTION_COUNT_EXCEEDED('Authority', NSCOUNT));
+                }
+                if (ARCOUNT > DNS_MAX_SECTION_COUNT) {
+                    throw new Error(ValidationErrors.SECTION_COUNT_EXCEEDED('Additional', ARCOUNT));
+                }
 
-            for (let i = 0; i < ANCOUNT; i++) {
-                this.answers.push(Answer.from(reader));
-            }
+                for (let i = 0; i < QDCOUNT; i++) {
+                    this.questions.push(Question.from(reader));
+                }
 
-            for (let i = 0; i < NSCOUNT; i++) {
-                this.authorities.push(Answer.from(reader));
-            }
+                for (let i = 0; i < ANCOUNT; i++) {
+                    this.answers.push(Answer.from(reader));
+                }
 
-            for (let i = 0; i < ARCOUNT; i++) {
-                this.additionals.push(Answer.from(reader));
+                for (let i = 0; i < NSCOUNT; i++) {
+                    this.authorities.push(Answer.from(reader));
+                }
+
+                for (let i = 0; i < ARCOUNT; i++) {
+                    this.additionals.push(Answer.from(reader));
+                }
+            } catch (error) {
+                // Wrap parsing errors with context
+                if (error instanceof Error) {
+                    throw new Error(`Failed to parse DNS packet: ${error.message}`);
+                }
+                throw error;
             }
         } else if (bufferOrParams) {
             this.load(bufferOrParams);

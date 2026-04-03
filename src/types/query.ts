@@ -20,6 +20,12 @@
 
 import { Packet } from './packet';
 
+/**
+ * Specialized DNS Packet for queries (type=0)
+ *
+ * Sets {@link Packet.recursion_desired} to `true` by default.
+ * Omits answer, authority, and additional sections from the constructor.
+ */
 export class Query extends Packet {
     /**
      * Constructs a new DNS Query packet

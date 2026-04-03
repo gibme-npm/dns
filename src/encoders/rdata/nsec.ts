@@ -21,16 +21,34 @@
 import { Reader, Writer } from '@gibme/bytepack';
 import { Name, TypeBitMap } from '../';
 import { RTYPE, RType } from '../../types';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS NSEC (Next Secure) resource records (Type 47).
+ *
+ * Provides authenticated denial of existence for DNSSEC.
+ *
+ * @see RFC 4034 Section 4
+ */
 export class NSEC {
+    /** IANA resource record type identifier */
     public static readonly type: number = 47;
 
+    /**
+     * Decodes an NSEC record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded NSEC record
+     */
     public static decode (reader: Reader): NSEC.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'NSEC RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
 
         const nextDomain = Name.decode(reader);
 
-        const types = TypeBitMap.decode(new Reader(reader.bytes(length - nextDomain.length - 2)));
+        // Remaining bytes are the type bitmap
+        const types = TypeBitMap.decode(reader);
 
         return {
             nextDomain,
@@ -38,6 +56,13 @@ export class NSEC {
         };
     }
 
+    /**
+     * Encodes an NSEC record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the NSEC record to encode
+     * @param index - compression index for DNS name compression
+     */
     public static encode (writer: Writer, data: NSEC.Record, index: Name.CompressionIndex): void {
         const temp = new Writer();
 
@@ -53,7 +78,9 @@ export class NSEC {
 
 export namespace NSEC {
     export type Record = {
+        /** The next owner name in canonical ordering */
         nextDomain: string;
+        /** Bitmap of record types that exist at the NSEC owner name */
         types: RTYPE[];
     }
 }

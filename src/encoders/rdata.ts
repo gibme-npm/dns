@@ -84,6 +84,10 @@ export type RRDataEncoder<RRDATA = any> = {
     encode: (writer: Writer, data: RRDATA, index: Name.CompressionIndex) => void;
 }
 
+/**
+ * Registry mapping IANA resource record type IDs to their encoder implementations.
+ * Used by {@link RDATA} to dispatch encode/decode calls to the correct handler.
+ */
 export const RRDataMap: Map<number, RRDataEncoder> = new Map<number, RRDataEncoder>([
     [1, A],
     [2, NS],
@@ -114,14 +118,14 @@ export const RRDataMap: Map<number, RRDataEncoder> = new Map<number, RRDataEncod
     [51, NSEC3PARAM],
     [52, TLSA],
     [53, SMIMEA],
-    [51, HIP],
+    [55, HIP],
     [59, CDS],
     [60, CDNSKEY],
     [61, OPENPGPKEY],
     [62, CSYNC],
     [63, ZONEMD],
     [64, SVCB],
-    [64, HTTPS],
+    [65, HTTPS],
     [108, EUI48],
     [109, EUI64],
     [249, TKEY],

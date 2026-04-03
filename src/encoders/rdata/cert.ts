@@ -19,23 +19,47 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS CERT (Certificate) resource records (Type 37).
+ *
+ * Stores certificates and related revocation lists in DNS.
+ *
+ * @see RFC 4398
+ */
 export class CERT {
+    /** IANA resource record type identifier */
     public static readonly type: number = 37;
 
+    /**
+     * Decodes a CERT record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the decoded CERT record
+     */
     public static decode (reader: Reader): CERT.Record {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'CERT RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const temp = new Reader(reader.bytes(length));
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'CERT RDATA payload');
 
         return {
-            type: temp.uint16_t(true).toJSNumber(),
-            keyTag: temp.uint16_t(true).toJSNumber(),
-            algorithm: temp.uint8_t().toJSNumber(),
-            certificate: temp.unreadBuffer
+            type: rdataReader.uint16_t(true).toJSNumber(),
+            keyTag: rdataReader.uint16_t(true).toJSNumber(),
+            algorithm: rdataReader.uint8_t().toJSNumber(),
+            certificate: rdataReader.unreadBuffer
         };
     }
 
+    /**
+     * Encodes a CERT record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the CERT record to encode
+     */
     public static encode (writer: Writer, data: CERT.Record): void {
         const temp = new Writer();
 
@@ -55,9 +79,13 @@ export class CERT {
 
 export namespace CERT {
     export type Record = {
+        /** Certificate type (1=PKIX, 2=SPKI, 3=PGP, etc.) */
         type: number;
+        /** Key tag for the associated DNSKEY */
         keyTag: number;
+        /** DNSSEC algorithm number */
         algorithm: number;
+        /** The certificate data */
         certificate: Buffer;
     }
 }

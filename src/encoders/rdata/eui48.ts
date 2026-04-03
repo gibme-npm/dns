@@ -19,18 +19,44 @@
 // SOFTWARE.
 
 import { Reader, Writer } from '@gibme/bytepack';
+import { validateBufferLength, createBoundedReader } from '../../utils/validation';
 
+/**
+ * Encoder for DNS EUI48 (48-bit Extended Unique Identifier) resource records (Type 108).
+ *
+ * Stores a 48-bit IEEE MAC address.
+ *
+ * @see RFC 7043 Section 3
+ */
 export class EUI48 {
+    /** IANA resource record type identifier */
     public static readonly type: number = 108;
 
+    /**
+     * Decodes an EUI48 record from the byte stream.
+     *
+     * @param reader - the byte stream reader
+     * @returns the MAC address string
+     */
     public static decode (reader: Reader): string {
-        const length = reader.uint16_t(true).toJSNumber();
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'EUI48 RDATA length');
+        const rdataLength = reader.uint16_t(true).toJSNumber();
 
-        const mac = reader.bytes(length);
+        // Create bounded reader for RDATA payload
+        const rdataReader = createBoundedReader(reader, rdataLength, 'EUI48 RDATA payload');
+
+        const mac = rdataReader.bytes(rdataLength);
 
         return [...mac].map(b => b.toString(16).padStart(2, '0')).join(':');
     }
 
+    /**
+     * Encodes an EUI48 record into the byte stream.
+     *
+     * @param writer - the byte stream writer
+     * @param data - the MAC address string (colon-separated)
+     */
     public static encode (writer: Writer, data: string): void {
         const temp = new Writer();
 
@@ -45,5 +71,6 @@ export class EUI48 {
 }
 
 export namespace EUI48 {
+    /** The EUI48 record data represented as a colon-separated MAC address string */
     export type Record = string;
 }

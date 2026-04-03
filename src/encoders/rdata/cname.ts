@@ -20,16 +20,40 @@
 
 import type { Reader, Writer } from '@gibme/bytepack';
 import { Name } from '../';
+import { validateBufferLength } from '../../utils/validation';
 
+/**
+ * Encoder for DNS CNAME (Canonical Name) resource records (Type 5).
+ *
+ * Maps an alias name to a canonical domain name.
+ *
+ * @see RFC 1035 Section 3.3.1
+ */
 export class CNAME {
+    /** IANA resource record type identifier */
     public static readonly type: number = 5;
 
+    /**
+     * Decodes a CNAME record from the byte stream.
+     *
+     * @param reader - the byte stream reader positioned at the CNAME RDATA
+     * @returns the canonical domain name
+     */
     public static decode (reader: Reader): string {
-        reader.uint16_t(true).toJSNumber(); // length, unused
+        // Validate and read RDATA length
+        validateBufferLength(reader, 2, 'CNAME RDATA length');
+        reader.uint16_t(true).toJSNumber(); // length, unused for compression-capable records
 
         return Name.decode(reader);
     }
 
+    /**
+     * Encodes a CNAME record into the byte stream.
+     *
+     * @param writer - the byte stream writer to encode into
+     * @param name - the canonical domain name
+     * @param index - compression index for DNS name pointer compression
+     */
     public static encode (writer: Writer, name: string, index: Name.CompressionIndex): void {
         const buffer = Name.compress(name, index, writer.length + 2);
 
@@ -40,5 +64,6 @@ export class CNAME {
 }
 
 export namespace CNAME {
+    /** The CNAME record data is a domain name string representing the canonical name. */
     export type Record = string;
 }
